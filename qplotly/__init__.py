@@ -1223,6 +1223,55 @@ class QFigure:
 
     # ---- colorbar support -------------------------------------------------
 
+    def _auto_detect_values_from_labels(self):
+        """Try to auto-detect parameter values from trace labels.
+
+        Looks for patterns like "x=10", "10", "param=10.5" in trace names.
+        Returns array of values if successful, None otherwise.
+        """
+        import re
+        import numpy as np
+
+        # Get all trace names/labels
+        labels = []
+        for trace in self._fig.data:
+            if hasattr(trace, 'name') and trace.name:
+                labels.append(trace.name)
+            elif hasattr(trace, 'showlegend') and trace.showlegend:
+                labels.append(str(trace.get('name', '')))
+
+        if not labels or len(labels) < 5:
+            return None
+
+        # Try to extract numbers from labels
+        values = []
+        patterns = [
+            r'[=:]\s*([-+]?[0-9]*\.?[0-9]+)',  # Matches "x=10", "param: 12.5"
+            r'^([-+]?[0-9]*\.?[0-9]+)',         # Matches "10", "12.5" at start
+            r'([-+]?[0-9]*\.?[0-9]+)$',         # Matches numbers at end
+        ]
+
+        for label in labels:
+            extracted = None
+            for pattern in patterns:
+                match = re.search(pattern, str(label))
+                if match:
+                    try:
+                        extracted = float(match.group(1))
+                        break
+                    except (ValueError, IndexError):
+                        continue
+
+            if extracted is not None:
+                values.append(extracted)
+            else:
+                # Failed to extract from this label
+                return None
+
+        if len(values) == len(labels) and len(values) >= 5:
+            return np.array(values)
+        return None
+
     def attach_colorbar_values(self, values, label=None):
         """Attach parameter values to traces for colorbar display.
 
@@ -1256,16 +1305,27 @@ class QFigure:
         self._colorbar_label = label
         return self
 
-    def colorbar(self, title=None, x=1.02, thickness=20, len_=0.7):
+    def colorbar(self, values=None, label=None, title=None, x=1.02, thickness=20, len_=0.7):
         """Add a colorbar showing the mapping between trace colors and values.
 
-        Must call attach_colorbar_values() first, or this will have no effect.
+        Values can be provided in three ways (in order of priority):
+        1. Pass directly to colorbar(): fig.colorbar(values=[10, 12, 14], label='x')
+        2. Attach first: fig.attach_colorbar_values([10, 12, 14], label='x')
+        3. Auto-detect from trace labels (e.g., "x=10" → 10)
+        4. Use trace indices: [0, 1, 2, ...]
+
         Only works when nipy_spectral colormap was used (5+ traces).
 
         Parameters
         ----------
+        values : array-like, optional
+            Values corresponding to each trace. If None, uses previously
+            attached values or auto-detects from trace labels.
+        label : str, optional
+            Label for the colorbar axis (e.g., 'x', 'Parameter'). If None,
+            uses previously attached label.
         title : str, optional
-            Title for colorbar. If None, uses label from attach_colorbar_values()
+            Title for colorbar. If None, uses label parameter or stored label.
         x : float, default 1.02
             Horizontal position of colorbar (1.0 = right edge of plot)
         thickness : int, default 20
@@ -1280,15 +1340,53 @@ class QFigure:
 
         Examples
         --------
-        >>> fig.attach_colorbar_values([10, 12, 14, 16, 18, 20], label='Parameter x')
+        >>> # Method 1: Direct (simplest)
+        >>> for x in [10, 12, 14, 16, 18, 20]:
+        ...     ax.plot(freq, data)
+        >>> fig.colorbar(values=[10, 12, 14, 16, 18, 20], label='x')
+
+        >>> # Method 2: Attach first (for method chaining)
+        >>> fig.attach_colorbar_values([10, 12, 14, 16, 18, 20], label='x')
         >>> fig.colorbar()
+
+        >>> # Method 3: Auto-detect from labels
+        >>> for x in [10, 12, 14, 16, 18, 20]:
+        ...     ax.plot(freq, data, label=f'x={x}')
+        >>> fig.colorbar(label='x')  # Auto-detects 10, 12, 14... from labels
         """
         if self._colorbar_added:
             return self  # Already added
 
+        # Priority 1: Use values passed to colorbar()
+        if values is not None:
+            import numpy as np
+            self._colorbar_values = np.array(values)
+            if label is not None:
+                self._colorbar_label = label
+
+        # Priority 2: Use previously attached values
+        # (already set via attach_colorbar_values())
+
+        # Priority 3: Auto-detect from trace labels
+        if self._colorbar_values is None:
+            self._colorbar_values = self._auto_detect_values_from_labels()
+            if self._colorbar_values is not None and label is not None:
+                self._colorbar_label = label
+
+        # Priority 4: Use trace indices as fallback
+        if self._colorbar_values is None:
+            # Ensure colors are applied first to know how many traces
+            self._apply_auto_color_scheme()
+            if self._colorbar_colors is not None:
+                import numpy as np
+                n_traces = len(self._colorbar_colors)
+                self._colorbar_values = np.arange(n_traces)
+                if label is None and self._colorbar_label is None:
+                    self._colorbar_label = "Trace"
+
         if self._colorbar_values is None:
             import warnings
-            warnings.warn("colorbar() called but no values attached. Call attach_colorbar_values() first.")
+            warnings.warn("colorbar() called but no values could be determined.")
             return self
 
         # Ensure colors are applied first (this populates _colorbar_colors)

@@ -13,7 +13,7 @@ A matplotlib-like interface for Plotly, providing a familiar API for interactive
 - **Comprehensive plot types**: Support for line plots, scatter plots, bar charts, histograms, heatmaps, contours, and more
 - **Subplots**: Easy subplot creation with `subplots()` function
 - **Format strings**: Matplotlib-style format strings like `'ro--'` for red dashed lines with circle markers
-- **Color cycling**: Automatic color cycling for multiple traces
+- **Per-subplot color cycling**: Automatic color cycling using nipy_spectral colormap, with colors resetting per subplot for consistent cross-subplot comparison
 - **Dual axes**: Support for secondary y-axes with `twinx()`
 - **Annotations**: Text annotations, arrows, and reference lines
 
@@ -70,6 +70,24 @@ axes[0][0].plot(x, y)
 axes[0][1].scatter(x, y)
 fig.show()
 ```
+
+#### Per-Subplot Color Cycling
+qplotly automatically assigns colors using the nipy_spectral colormap, with colors cycling independently per subplot. This ensures consistent colors across subplots for easy visual comparison.
+
+```python
+# Colors reset for each subplot
+fig, axes = qplotly.subplots(2, 2)
+x = np.linspace(0, 10, 100)
+
+for ax in [axes[0][0], axes[0][1], axes[1][0], axes[1][1]]:
+    for i in range(6):
+        ax.plot(x, np.sin(x + i*0.5), label=f'Trace {i+1}')
+    ax.legend()
+
+fig.show()
+```
+
+Result: All 4 subplots use the same color sequence (dark purple → blue → cyan → green → orange → light gray), making it easy to compare corresponding traces across subplots.
 
 #### Pyplot-style (stateful)
 ```python

@@ -109,7 +109,7 @@ class Axes:
 
         # Track if this trace used automatic coloring
         if getattr(self, '_next_trace_auto_colored', False):
-            self._parent._auto_colored_trace_indices.append(trace_idx)
+            self._parent._auto_colored_trace_indices.append((trace_idx, self))
             self._next_trace_auto_colored = False
 
         # Track traces with legend entries for per-subplot legends
@@ -884,6 +884,7 @@ class QFigure:
         self._apply_default_style()
 
         # Track auto-colored traces for smart color scheme application
+        # Store tuples of (trace_idx, axes) to enable per-subplot coloring
         self._auto_colored_trace_indices = []
 
         # Default single axes
@@ -991,60 +992,61 @@ class QFigure:
     # ---- auto color scheme ------------------------------------------------
 
     def _apply_auto_color_scheme(self):
-        """Apply smart color scheme based on number of auto-colored traces.
+        """Apply nipy_spectral colormap per subplot.
 
-        Color scheme:
-        - 2 traces: blue, black
-        - 3-4 traces: blue, red, green, black
-        - >4 traces: nipy_spectral colormap with evenly spaced colors
+        Each subplot gets evenly spaced colors from the nipy_spectral colormap,
+        so colors are consistent across all subplots (first trace in each subplot
+        gets the same color, second trace gets the same color, etc.).
         """
         if not self._auto_colored_trace_indices:
             return
 
-        n_auto = len(self._auto_colored_trace_indices)
+        # Group traces by their axes (subplot)
+        traces_by_axes = {}
+        for trace_idx, axes in self._auto_colored_trace_indices:
+            if axes not in traces_by_axes:
+                traces_by_axes[axes] = []
+            traces_by_axes[axes].append(trace_idx)
 
-        # Determine color scheme based on count
-        if n_auto == 2:
-            colors = ['blue', 'black']
-        elif n_auto in (3, 4):
-            colors = ['blue', 'red', 'green', 'black'][:n_auto]
-        else:  # > 4
+        # Apply colors per subplot
+        for axes, trace_indices in traces_by_axes.items():
+            n_traces = len(trace_indices)
+
             # Use nipy_spectral colormap with evenly spaced colors
             try:
                 import matplotlib.cm as cm
                 import matplotlib.colors as mcolors
                 cmap = cm.get_cmap('nipy_spectral')
                 colors = []
-                for i in range(n_auto):
-                    t = i / (n_auto - 1) if n_auto > 1 else 0
+                for i in range(n_traces):
+                    t = i / (n_traces - 1) if n_traces > 1 else 0
                     rgba = cmap(t)
                     hex_color = mcolors.rgb2hex(rgba[:3])
                     colors.append(hex_color)
             except (ImportError, ValueError):
-                # Fallback to default colors if matplotlib not available
-                colors = DEFAULT_COLORS * (n_auto // len(DEFAULT_COLORS) + 1)
-                colors = colors[:n_auto]
+                # Fallback to DEFAULT_COLORS if matplotlib not available
+                colors = DEFAULT_COLORS * ((n_traces // len(DEFAULT_COLORS)) + 1)
+                colors = colors[:n_traces]
 
-        # Apply colors to auto-colored traces
-        for i, trace_idx in enumerate(self._auto_colored_trace_indices):
-            if trace_idx >= len(self._fig.data):
-                continue
+            # Apply colors to traces in this subplot
+            for i, trace_idx in enumerate(trace_indices):
+                if trace_idx >= len(self._fig.data):
+                    continue
 
-            trace = self._fig.data[trace_idx]
-            color = colors[i]
+                trace = self._fig.data[trace_idx]
+                color = colors[i]
 
-            # Update trace color based on trace type
-            # Plotly traces have line and/or marker attributes
-            if hasattr(trace, 'line') and trace.line:
-                try:
-                    trace.line.color = color
-                except (AttributeError, TypeError):
-                    pass
-            if hasattr(trace, 'marker') and trace.marker:
-                try:
-                    trace.marker.color = color
-                except (AttributeError, TypeError):
-                    pass
+                # Update trace color based on trace type
+                if hasattr(trace, 'line') and trace.line:
+                    try:
+                        trace.line.color = color
+                    except (AttributeError, TypeError):
+                        pass
+                if hasattr(trace, 'marker') and trace.marker:
+                    try:
+                        trace.marker.color = color
+                    except (AttributeError, TypeError):
+                        pass
 
     # ---- subplot legends --------------------------------------------------
 

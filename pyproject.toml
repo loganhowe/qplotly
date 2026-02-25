@@ -11,3 +11,6 @@ dependencies = [
     "plotly",
     "numpy",
 ]
+
+[tool.setuptools]
+packages = ["qplotly"]

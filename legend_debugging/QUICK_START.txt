@@ -1,0 +1,113 @@
+QPLOTLY LEGEND FEATURES - QUICK START GUIDE
+===========================================
+
+This folder contains 15 demonstration plots showing qplotly's matplotlib-compatible
+legend functionality.
+
+BEST PLOTS TO START WITH:
+-------------------------
+
+1. 01_basic_default.png
+   - Shows the default legend behavior
+   - Upper right position, opaque white box, black border
+   - This is what you get by just calling fig.legend()
+
+2. 02_all_locations_grid.png
+   - Shows all 11 matplotlib location names in one view
+   - Proves all positions work and stay inside plot boundaries
+
+3. 10_style_comparison.png
+   - 2x2 grid comparing different legend styles
+   - Quick visual reference for styling options
+
+4. 07_many_traces_auto_colors.png
+   - Shows 8 traces with auto-color scheme
+   - Demonstrates legend with nipy_spectral colors
+
+
+FEATURE CATEGORIES:
+-------------------
+
+POSITIONS (all inside plot boundaries):
+  02_all_locations_grid.png - All 11 locations
+
+CUSTOM COLORS:
+  03a_blue_background.png - Light blue with dark blue border
+  03b_yellow_theme.png - Yellow with orange border
+
+TRANSPARENCY:
+  04a_opaque.png - Fully opaque (default)
+  04b_semi_transparent.png - 50% transparent
+  04c_very_transparent.png - 20% opaque
+
+BORDERS:
+  05a_with_frame.png - With border (default)
+  05b_no_frame.png - No border
+
+FONT SIZES:
+  06a_small_font.png - Small text
+  06b_large_font.png - Large text
+
+PLOT TYPES:
+  07_many_traces_auto_colors.png - Line plots with many traces
+  08_scatter_with_legend.png - Scatter plot
+  09_mixed_plot_types.png - Mixed line/scatter
+
+
+KEY FEATURES:
+-------------
+✓ Default: Upper right, opaque white, black border
+✓ All 11 matplotlib location names supported
+✓ Legends stay inside plot boundaries (x: 0.02-0.98, y: 0.02-0.98)
+✓ Custom colors (facecolor, edgecolor)
+✓ Transparency control (framealpha)
+✓ Border on/off (frameon)
+✓ Font size control
+✓ Works with auto-color scheme
+✓ Works with all plot types
+
+
+MATPLOTLIB COMPATIBILITY:
+--------------------------
+These parameters work exactly like matplotlib:
+  - loc (location name string)
+  - fontsize
+  - frameon (border on/off)
+  - framealpha (transparency)
+  - facecolor (background color)
+  - edgecolor (border color)
+
+
+QUICK CODE EXAMPLES:
+--------------------
+
+# Default legend
+fig.legend()
+
+# Different position
+fig.legend(loc='lower left')
+
+# Custom colors
+fig.legend(loc='upper right', facecolor='lightblue', edgecolor='blue')
+
+# Transparent
+fig.legend(loc='center', framealpha=0.5)
+
+# No border
+fig.legend(loc='best', frameon=False)
+
+# Large font
+fig.legend(loc='upper right', fontsize=16)
+
+
+TO REGENERATE PLOTS:
+--------------------
+python demo_all_features.py
+
+
+FOLDER CONTENTS:
+----------------
+15 PNG demonstration plots
+1 README.md (detailed documentation)
+1 demo_all_features.py (script to generate plots)
+1 QUICK_START.txt (this file)

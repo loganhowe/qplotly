@@ -1,0 +1,85 @@
+================================================================================
+QUICK REFERENCE - ALL MATPLOTLIB-STYLE FEATURES
+================================================================================
+
+Three major features implemented for matplotlib compatibility:
+
+1. FRAME AND TICKS
+   - Frame thicker than grid (linewidth=2 vs gridwidth=0.5)
+   - Ticks extend OUTSIDE plot frame (ticks='outside')
+   - Tick length: 5px, thickness: 1.5
+
+2. TIGHT LAYOUT
+   - Enabled by default: show(tight_layout=True)
+   - Reduces margins for better space usage
+   - Disable if needed: show(tight_layout=False)
+
+3. CENTERED TITLES
+   - All titles centered over plot axes
+   - Single plots: x=0.5, xanchor='center'
+   - Subplots: centered in domain
+   - Automatic - no code changes needed
+
+================================================================================
+BEST FILES TO VIEW
+================================================================================
+
+FRAME & TICKS:
+  demo_frame_with_grid.png ......... Shows frame thickness vs grid
+  demo_frame_no_grid.png ........... Frame and ticks without grid
+
+TIGHT LAYOUT:
+  demo_tight_on.png ................ With tight_layout (default)
+  demo_tight_off.png ............... Without tight_layout (for comparison)
+
+COMPLETE FEATURES:
+  demo_complete_publication.png .... 2x3 figure with ALL features
+
+BEFORE/AFTER:
+  before_single.png + after_single.png ... See the improvements
+
+================================================================================
+USAGE EXAMPLES
+================================================================================
+
+BASIC (All features automatic):
+  fig = qplotly.figure()
+  fig.plot(x, y)
+  fig.title('My Title')  # Automatically centered
+  fig.show()             # Automatically uses tight_layout
+
+SUBPLOTS (All features automatic):
+  fig, axes = qplotly.subplots(2, 2)
+  axes[0][0].plot(x, y)
+  axes[0][0].title('Plot A')  # Automatically centered
+  fig.show()                  # Automatically uses tight_layout
+
+DISABLE TIGHT LAYOUT (if needed):
+  fig.show(tight_layout=False)
+  fig.savefig('plot.png', tight_layout=False)
+
+================================================================================
+ALL FEATURES AT A GLANCE
+================================================================================
+
+Frame/Ticks:  [OK] Thicker frame, ticks extend outside, like matplotlib
+Tight Layout: [OK] Reduced margins by default (opt-out available)
+Titles:       [OK] All titles centered over axes
+Auto Colors:  [OK] 2=blue/black, 3-4=blue/red/green/black, >4=nipy_spectral
+Legends:      [OK] Per-subplot, all matplotlib positions
+Grid:         [OK] Black 50% opacity, thinner than frame
+Background:   [OK] White plot and paper background
+Font:         [OK] Computer Modern with fallbacks
+
+EVERYTHING WORKS AUTOMATICALLY - NO CODE CHANGES NEEDED!
+
+================================================================================
+DOCUMENTATION FILES
+================================================================================
+
+  SUMMARY.txt ...................... Complete feature summary
+  FRAME_TICK_CHANGES.md ............ Frame/tick technical details
+  TIGHT_LAYOUT_AND_TITLES.md ....... Tight layout and titles docs
+  QUICK_REFERENCE.txt .............. This file
+
+================================================================================

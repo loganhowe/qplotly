@@ -1,0 +1,126 @@
+{
+  "auto_2traces.png": {
+    "rgb_colors": [
+      [
+        75,
+        77,
+        252
+      ],
+      [
+        128,
+        128,
+        128
+      ]
+    ],
+    "color_names": [
+      "blue",
+      "unknown"
+    ],
+    "expected": [
+      "blue",
+      "black"
+    ],
+    "match_count": 1,
+    "total": 2
+  },
+  "auto_3traces.png": {
+    "rgb_colors": [
+      [
+        77,
+        79,
+        251
+      ],
+      [
+        76,
+        79,
+        251
+      ],
+      [
+        74,
+        163,
+        80
+      ]
+    ],
+    "color_names": [
+      "blue",
+      "blue",
+      "green"
+    ],
+    "expected": [
+      "blue",
+      "red",
+      "green"
+    ],
+    "match_count": 2,
+    "total": 3
+  },
+  "auto_4traces.png": {
+    "rgb_colors": [
+      [
+        128,
+        128,
+        128
+      ],
+      [
+        81,
+        83,
+        251
+      ],
+      [
+        82,
+        167,
+        88
+      ],
+      [
+        81,
+        93,
+        86
+      ]
+    ],
+    "color_names": [
+      "unknown",
+      "blue",
+      "green",
+      "green"
+    ],
+    "expected": [
+      "blue",
+      "red",
+      "green",
+      "black"
+    ],
+    "match_count": 1,
+    "total": 4
+  },
+  "auto_mixed.png": {
+    "rgb_colors": [
+      [
+        247,
+        72,
+        75
+      ],
+      [
+        150,
+        71,
+        74
+      ],
+      [
+        128,
+        128,
+        128
+      ]
+    ],
+    "color_names": [
+      "red",
+      "red",
+      "unknown"
+    ],
+    "expected": [
+      "red",
+      "blue",
+      "black"
+    ],
+    "match_count": 1,
+    "total": 3
+  }
+}

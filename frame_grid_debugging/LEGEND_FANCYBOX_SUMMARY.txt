@@ -1,0 +1,140 @@
+================================================================================
+LEGEND FANCYBOX (ROUNDED CORNERS) - INVESTIGATION SUMMARY
+================================================================================
+
+QUESTION: Does fancybox (rounded legend corners) work in qplotly?
+
+ANSWER: The parameter is ACCEPTED but has NO VISUAL EFFECT.
+
+================================================================================
+WHY IT DOESN'T WORK
+================================================================================
+
+ROOT CAUSE: Plotly Limitation
+  - Plotly's native legend object does not support borderradius
+  - No parameter exists for rounded corners in Plotly
+  - This is a fundamental limitation of Plotly, not qplotly
+
+CURRENT IMPLEMENTATION:
+  - Parameter ACCEPTED for matplotlib API compatibility
+  - Stored in legend configuration
+  - NO visual rendering due to Plotly limitation
+  - Code comment at line 754-755 explains this
+
+================================================================================
+TESTING PERFORMED
+================================================================================
+
+Generated 4 test files:
+  1. test_legend_fancybox_default.png ...... Default (fancybox=True)
+  2. test_legend_fancybox_true.png ......... Explicit fancybox=True
+  3. test_legend_fancybox_false.png ........ fancybox=False
+  4. test_legend_fancybox_comparison.png ... Side-by-side comparison
+
+RESULT: NO visual difference between fancybox=True and fancybox=False
+        All legends have SQUARE corners (Plotly default)
+
+================================================================================
+COMPARISON WITH MATPLOTLIB
+================================================================================
+
+MATPLOTLIB:
+  plt.legend(fancybox=True)   # Rounded corners
+  plt.legend(fancybox=False)  # Square corners
+
+QPLOTLY:
+  fig.legend(fancybox=True)   # Square corners (Plotly limitation)
+  fig.legend(fancybox=False)  # Square corners (same)
+
+================================================================================
+POSSIBLE WORKAROUNDS (NOT RECOMMENDED)
+================================================================================
+
+Option 1: Custom SVG Shapes
+  - Draw rounded rectangle behind legend
+  - PROBLEMS: Fragile, breaks with size changes, complex
+
+Option 2: HTML/CSS Legend
+  - Replace native legend with custom HTML
+  - PROBLEMS: Loses interactive features (click to hide/show)
+
+Option 3: Use Annotations
+  - Already done for subplot legends
+  - PROBLEMS: Still no rounded corners, loses interactivity
+
+CONCLUSION: All workarounds are too complex and fragile
+            NOT worth the loss of features for cosmetic change
+
+================================================================================
+RECOMMENDATION
+================================================================================
+
+KEEP CURRENT IMPLEMENTATION:
+  [OK] Accept parameter for API compatibility
+  [OK] Document limitation clearly
+  [OK] Maintain interactive legend features
+  [OK] Wait for Plotly to add borderradius support
+
+RATIONALE:
+  - Interactive features > cosmetic styling
+  - Workarounds are fragile and complex
+  - Most users won't notice (both have square corners consistently)
+  - If Plotly adds support later, we can enable it easily
+
+================================================================================
+DOCUMENTATION STATUS
+================================================================================
+
+CURRENT:
+  - Code comment explains limitation (line 754-755)
+  - Function parameter documented as matplotlib-compatible
+
+SHOULD ADD:
+  - Docstring note about no visual effect
+  - README note about Plotly limitation
+  - Clear user expectation setting
+
+================================================================================
+API COMPATIBILITY
+================================================================================
+
+MATPLOTLIB CODE:
+  fig, ax = plt.subplots()
+  ax.plot(x, y, label='data')
+  ax.legend(fancybox=True)  # Works in matplotlib
+
+QPLOTLY CODE (SAME SYNTAX):
+  fig, axes = qplotly.subplots()
+  axes.plot(x, y, label='data')
+  axes.legend(fancybox=True)  # Accepted but no visual effect
+
+STATUS: ✓ API Compatible
+        ✗ Visual Effect (Plotly limitation)
+
+================================================================================
+CONCLUSION
+================================================================================
+
+The fancybox parameter works as designed given Plotly's limitations:
+
+  ✓ Parameter ACCEPTED (matplotlib compatibility)
+  ✓ No errors or warnings
+  ✓ API compatible
+  ✗ No visual rounded corners (Plotly doesn't support it)
+  ✓ Interactive features preserved
+  ✓ Documented in code
+
+THIS IS EXPECTED BEHAVIOR.
+
+Implementing workarounds would:
+  - Add significant complexity
+  - Reduce reliability
+  - Break interactive features
+  - NOT be worth it for cosmetic change
+
+If Plotly adds borderradius support in the future, we can enable it with
+a single line of code.
+
+================================================================================
+END OF SUMMARY
+================================================================================

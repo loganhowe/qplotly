@@ -887,6 +887,12 @@ class QFigure:
         # Store tuples of (trace_idx, axes) to enable per-subplot coloring
         self._auto_colored_trace_indices = []
 
+        # Colorbar tracking for automatic colorbar support
+        self._colorbar_values = None  # Values to map to colors
+        self._colorbar_label = None   # Label for colorbar
+        self._colorbar_colors = None  # Hex colors used
+        self._colorbar_added = False  # Track if colorbar already added
+
         # Default single axes
         self._default_ax = Axes(self, 1, 1)
 
@@ -1027,6 +1033,11 @@ class QFigure:
                 # Fallback to DEFAULT_COLORS if matplotlib not available
                 colors = DEFAULT_COLORS * ((n_traces // len(DEFAULT_COLORS)) + 1)
                 colors = colors[:n_traces]
+
+            # Store colors for colorbar support (only first time, when using nipy_spectral)
+            # This allows fig.colorbar() to work automatically
+            if self._colorbar_colors is None and n_traces >= 5:
+                self._colorbar_colors = colors.copy()
 
             # Apply colors to traces in this subplot
             for i, trace_idx in enumerate(trace_indices):
@@ -1209,6 +1220,130 @@ class QFigure:
 
     def to_json(self, **kwargs):
         return self._fig.to_json(**kwargs)
+
+    # ---- colorbar support -------------------------------------------------
+
+    def attach_colorbar_values(self, values, label=None):
+        """Attach parameter values to traces for colorbar display.
+
+        Call this after plotting all traces but before show() or colorbar().
+        Associates values with the colors that were automatically assigned
+        to traces when using nipy_spectral colormap (5+ traces).
+
+        Parameters
+        ----------
+        values : array-like
+            Values corresponding to each trace (e.g., sweep parameter values)
+        label : str, optional
+            Label for the colorbar (parameter name)
+
+        Returns
+        -------
+        self : QFigure
+            Returns self for method chaining
+
+        Examples
+        --------
+        >>> fig, ax = qplotly.subplots()
+        >>> for x in [10, 12, 14, 16, 18, 20]:
+        ...     ax.plot(freq, compute_data(x))
+        >>> fig.attach_colorbar_values([10, 12, 14, 16, 18, 20], label='x')
+        >>> fig.colorbar()
+        >>> fig.show()
+        """
+        import numpy as np
+        self._colorbar_values = np.array(values)
+        self._colorbar_label = label
+        return self
+
+    def colorbar(self, title=None, x=1.02, thickness=20, len_=0.7):
+        """Add a colorbar showing the mapping between trace colors and values.
+
+        Must call attach_colorbar_values() first, or this will have no effect.
+        Only works when nipy_spectral colormap was used (5+ traces).
+
+        Parameters
+        ----------
+        title : str, optional
+            Title for colorbar. If None, uses label from attach_colorbar_values()
+        x : float, default 1.02
+            Horizontal position of colorbar (1.0 = right edge of plot)
+        thickness : int, default 20
+            Thickness of colorbar in pixels
+        len_ : float, default 0.7
+            Length of colorbar as fraction of plot height
+
+        Returns
+        -------
+        self : QFigure
+            Returns self for method chaining
+
+        Examples
+        --------
+        >>> fig.attach_colorbar_values([10, 12, 14, 16, 18, 20], label='Parameter x')
+        >>> fig.colorbar()
+        """
+        if self._colorbar_added:
+            return self  # Already added
+
+        if self._colorbar_values is None:
+            import warnings
+            warnings.warn("colorbar() called but no values attached. Call attach_colorbar_values() first.")
+            return self
+
+        # Ensure colors are applied first (this populates _colorbar_colors)
+        self._apply_auto_color_scheme()
+
+        if self._colorbar_colors is None:
+            import warnings
+            warnings.warn("colorbar() requires nipy_spectral colors (5+ traces). No colorbar added.")
+            return self
+
+        import plotly.graph_objects as go
+        import numpy as np
+
+        values = self._colorbar_values
+        colors = self._colorbar_colors[:len(values)]  # Trim colors to match values
+
+        # Create colorscale from nipy_spectral colors
+        colorscale = []
+        for i, color in enumerate(colors):
+            position = i / (len(values) - 1) if len(values) > 1 else 0
+            colorscale.append([position, color])
+
+        # Use provided title or stored label
+        colorbar_title = title if title is not None else self._colorbar_label
+        if colorbar_title is None:
+            colorbar_title = ""
+
+        # Add invisible scatter trace with colorbar
+        dummy_trace = go.Scatter(
+            x=[None],
+            y=[None],
+            mode='markers',
+            marker=dict(
+                colorscale=colorscale,
+                cmin=values[0],
+                cmax=values[-1],
+                colorbar=dict(
+                    title=dict(
+                        text=f'<b>{colorbar_title}</b>' if colorbar_title else '',
+                        side='right'
+                    ),
+                    thickness=thickness,
+                    len=len_,
+                    x=x,
+                    xanchor='left'
+                ),
+                showscale=True
+            ),
+            showlegend=False,
+            hoverinfo='skip'
+        )
+        self._fig.add_trace(dummy_trace)
+        self._colorbar_added = True
+
+        return self
 
     @property
     def plotly_fig(self):

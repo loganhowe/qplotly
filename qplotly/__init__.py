@@ -1233,22 +1233,35 @@ class QFigure:
                                   scale=scale, **kwargs)
         return self
 
-    def savefig_matplotlib(self, filename, dpi=150, tight_layout=True, **kwargs):
-        """Save figure as PNG using matplotlib for tight layout.
+    def savefig_matplotlib(self, filename=None, dpi=300, tight_layout=True,
+                           save_dir='.', fmt='png', **kwargs):
+        """Save figure as a static image by cloning to matplotlib.
 
-        Converts the plotly figure to matplotlib and saves as PNG.
-        This provides much tighter layouts with minimal whitespace compared to html2image.
+        If no filename is provided, auto-generates one from axis labels:
+            YYMMDD_HHMMSS_ylabel_vs_xlabel.png
+        - Units in brackets are stripped: "Time [ns]" -> "Time_ns"
+        - Spaces replaced with underscores
+        - If labels are empty: "unspecified_N" where N increments
 
         Parameters
         ----------
-        filename : str
-            Output PNG filename
-        dpi : int, default 150
+        filename : str, optional
+            Output filename. If None, auto-generates from axis labels.
+        dpi : int, default 300
             Resolution in dots per inch
         tight_layout : bool, default True
             Apply tight_layout to minimize whitespace
+        save_dir : str, default '.'
+            Directory for auto-generated filenames (ignored if filename given)
+        fmt : str, default 'png'
+            File format for auto-generated filenames (ignored if filename given)
         **kwargs : dict
             Additional arguments passed to matplotlib savefig
+
+        Returns
+        -------
+        str
+            Path to the saved file
         """
         import matplotlib.pyplot as plt
         import matplotlib
@@ -1270,19 +1283,13 @@ class QFigure:
         # Convert each subplot
         for i in range(self._nrows):
             for j in range(self._ncols):
-                ax_qplotly = self._axes_grid[i][j]
                 ax_mpl = axes_mpl[i][j]
-
-                # Get subplot index for accessing plotly data
                 subplot_idx = self._subplot_index(i + 1, j + 1)
 
-                # Extract data from plotly traces
                 for trace in self._fig.data:
-                    # Check if trace belongs to this subplot
                     xaxis_ref = trace.xaxis if hasattr(trace, 'xaxis') else f'x{subplot_idx}' if subplot_idx > 1 else 'x'
                     expected_ref = f'x{subplot_idx}' if subplot_idx > 1 else 'x'
 
-                    # For single subplot, traces may not have xaxis set
                     if self._nrows == 1 and self._ncols == 1:
                         belongs_to_subplot = True
                     else:
@@ -1291,12 +1298,10 @@ class QFigure:
                     if not belongs_to_subplot:
                         continue
 
-                    # Plot based on trace type
                     if trace.type == 'scatter':
                         x = trace.x if hasattr(trace, 'x') and trace.x is not None else []
                         y = trace.y if hasattr(trace, 'y') and trace.y is not None else []
 
-                        # Get styling
                         color = trace.line.color if hasattr(trace, 'line') and trace.line and trace.line.color else None
                         linewidth = trace.line.width if hasattr(trace, 'line') and trace.line and trace.line.width else 2
                         linestyle = '-'
@@ -1314,7 +1319,6 @@ class QFigure:
 
                         label = trace.name if trace.showlegend and trace.name else None
 
-                        # Plot
                         if marker:
                             ax_mpl.plot(x, y, color=color, linewidth=linewidth/2,
                                        linestyle=linestyle, marker=marker, label=label)
@@ -1334,13 +1338,42 @@ class QFigure:
                         x = trace.x if hasattr(trace, 'x') and trace.x is not None else None
                         y = trace.y if hasattr(trace, 'y') and trace.y is not None else None
 
+                        # Extract colormap from trace
+                        cmap_mpl = 'viridis'
+                        if hasattr(trace, 'colorscale') and trace.colorscale:
+                            cs = trace.colorscale
+                            if isinstance(cs, str):
+                                _cmap_map = {
+                                    'plasma': 'plasma', 'magma': 'magma',
+                                    'inferno': 'inferno', 'viridis': 'viridis',
+                                    'rdbu': 'RdBu', 'rdbu_r': 'RdBu_r',
+                                    'hot': 'hot', 'jet': 'jet',
+                                }
+                                cmap_mpl = _cmap_map.get(cs.lower(), cs)
+                            elif isinstance(cs, list) and len(cs) > 2:
+                                try:
+                                    from matplotlib.colors import LinearSegmentedColormap, to_rgba
+                                    colors_rgba = []
+                                    positions = []
+                                    for pos, col in cs:
+                                        positions.append(pos)
+                                        colors_rgba.append(to_rgba(col))
+                                    cmap_mpl = LinearSegmentedColormap.from_list(
+                                        'custom', list(zip(positions, colors_rgba)))
+                                except Exception:
+                                    pass
+
+                        vmin = trace.zmin if hasattr(trace, 'zmin') and trace.zmin is not None else None
+                        vmax = trace.zmax if hasattr(trace, 'zmax') and trace.zmax is not None else None
+
                         if trace.type == 'heatmap':
-                            im = ax_mpl.pcolormesh(x, y, z, shading='auto')
+                            im = ax_mpl.pcolormesh(x, y, z, shading='auto',
+                                                   cmap=cmap_mpl, vmin=vmin, vmax=vmax)
                             fig_mpl.colorbar(im, ax=ax_mpl)
                         else:
-                            ax_mpl.contour(x, y, z)
+                            ax_mpl.contour(x, y, z, cmap=cmap_mpl)
 
-                # Set labels and title from plotly layout
+                # Set labels, title, and axis scale from plotly layout
                 xaxis_name = f"xaxis{subplot_idx}" if subplot_idx > 1 else "xaxis"
                 yaxis_name = f"yaxis{subplot_idx}" if subplot_idx > 1 else "yaxis"
 
@@ -1348,16 +1381,18 @@ class QFigure:
                     xaxis = getattr(self._fig.layout, xaxis_name)
                     if xaxis.title and xaxis.title.text:
                         ax_mpl.set_xlabel(xaxis.title.text, fontsize=14)
+                    if xaxis.type == 'log':
+                        ax_mpl.set_xscale('log')
 
                 if hasattr(self._fig.layout, yaxis_name):
                     yaxis = getattr(self._fig.layout, yaxis_name)
                     if yaxis.title and yaxis.title.text:
                         ax_mpl.set_ylabel(yaxis.title.text, fontsize=14)
+                    if yaxis.type == 'log':
+                        ax_mpl.set_yscale('log')
 
-                # Grid
                 ax_mpl.grid(True, alpha=0.3)
 
-                # Legend - check if any traces have labels
                 handles, labels = ax_mpl.get_legend_handles_labels()
                 if handles and labels:
                     ax_mpl.legend(fontsize=11, framealpha=0.9)
@@ -1366,15 +1401,47 @@ class QFigure:
         if self._fig.layout.title and self._fig.layout.title.text:
             fig_mpl.suptitle(self._fig.layout.title.text, fontsize=16, fontweight='bold')
 
-        # Apply tight layout to minimize whitespace
         if tight_layout:
             fig_mpl.tight_layout()
 
-        # Save
+        # Generate filename if not provided
+        if filename is None:
+            import re
+            from datetime import datetime
+            from pathlib import Path
+
+            save_path = Path(save_dir)
+            save_path.mkdir(parents=True, exist_ok=True)
+
+            xaxis = self._fig.layout.xaxis
+            yaxis = self._fig.layout.yaxis
+            xlabel_text = xaxis.title.text if xaxis.title and xaxis.title.text else ''
+            ylabel_text = yaxis.title.text if yaxis.title and yaxis.title.text else ''
+
+            def _clean_label(lbl):
+                lbl = re.sub(r'\[([^\]]*)\]', r'\1', lbl)
+                lbl = re.sub(r'\(([^\)]*)\)', r'\1', lbl)
+                lbl = re.sub(r'[<>|/\\:*?"]', '', lbl)
+                lbl = lbl.strip().replace(' ', '_')
+                lbl = re.sub(r'_+', '_', lbl)
+                return lbl.strip('_')
+
+            timestamp = datetime.now().strftime('%y%m%d_%H%M%S')
+
+            if xlabel_text and ylabel_text:
+                basename = f'{timestamp}_{_clean_label(ylabel_text)}_vs_{_clean_label(xlabel_text)}'
+            elif xlabel_text or ylabel_text:
+                basename = f'{timestamp}_{_clean_label(xlabel_text or ylabel_text)}'
+            else:
+                existing = list(save_path.glob(f'*_unspecified_*.{fmt}'))
+                basename = f'{timestamp}_unspecified_{len(existing) + 1}'
+
+            filename = str(save_path / f'{basename}.{fmt}')
+
         fig_mpl.savefig(filename, dpi=dpi, bbox_inches='tight', **kwargs)
         plt.close(fig_mpl)
-
-        return self
+        print(f'Saved: {filename}')
+        return filename
 
     def to_html(self, **kwargs):
         return self._fig.to_html(**kwargs)

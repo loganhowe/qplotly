@@ -466,6 +466,22 @@ class Axes:
         if cmap is None:
             cmap = 'Plasma'
 
+        # Convert matplotlib colormap names to Plotly colorscale format
+        if isinstance(cmap, str):
+            try:
+                import plotly.colors as pc
+                # Check if it's already a valid Plotly colorscale
+                _valid = [s.lower() for s in pc.named_colorscales()]
+                if cmap.lower() not in _valid and not cmap.lower().rstrip('_r') in _valid:
+                    # Try to convert from matplotlib
+                    import matplotlib.cm as mpl_cm
+                    mpl_cmap = mpl_cm.get_cmap(cmap)
+                    n = 256
+                    cmap = [[i/(n-1), f'rgb({int(r*255)},{int(g*255)},{int(b*255)})']
+                            for i, (r, g, b, a) in enumerate(mpl_cmap(np.linspace(0, 1, n)))]
+            except (ImportError, ValueError):
+                pass  # Fall through and let Plotly handle it
+
         # Handle 1D x and y arrays (most common case)
         if x.ndim == 1 and y.ndim == 1:
             # Plotly Heatmap expects x and y as 1D arrays
@@ -783,6 +799,7 @@ class Axes:
             "lower center":  dict(x=0.5,  y=0.02, xanchor="center", yanchor="bottom"),
             "upper center":  dict(x=0.5,  y=0.98, xanchor="center", yanchor="top"),
             "center":        dict(x=0.5,  y=0.5,  xanchor="center", yanchor="middle"),
+            "outside center right": dict(x=1.02, y=0.5, xanchor="left", yanchor="middle"),
         }
 
         if config['loc'] in _loc_map:
@@ -1105,6 +1122,7 @@ class QFigure:
                     "upper center":  (0.5, 0.98, "center", "top"),
                     "center":        (0.5, 0.5, "center", "middle"),
                     "best":          (0.98, 0.98, "right", "top"),
+                    "outside center right": (1.02, 0.5, "left", "middle"),
                 }.get(loc, (0.98, 0.98, "right", "top"))
 
                 x_frac, y_frac, xanchor, yanchor = loc_coords
@@ -1213,6 +1231,149 @@ class QFigure:
         else:
             self._fig.write_image(filename, width=width, height=height,
                                   scale=scale, **kwargs)
+        return self
+
+    def savefig_matplotlib(self, filename, dpi=150, tight_layout=True, **kwargs):
+        """Save figure as PNG using matplotlib for tight layout.
+
+        Converts the plotly figure to matplotlib and saves as PNG.
+        This provides much tighter layouts with minimal whitespace compared to html2image.
+
+        Parameters
+        ----------
+        filename : str
+            Output PNG filename
+        dpi : int, default 150
+            Resolution in dots per inch
+        tight_layout : bool, default True
+            Apply tight_layout to minimize whitespace
+        **kwargs : dict
+            Additional arguments passed to matplotlib savefig
+        """
+        import matplotlib.pyplot as plt
+        import matplotlib
+        matplotlib.use('Agg')  # Non-interactive backend
+
+        # Apply plotly formatting first
+        self._apply_auto_color_scheme()
+        self._apply_subplot_legends()
+
+        # Create matplotlib figure
+        if self._nrows == 1 and self._ncols == 1:
+            fig_mpl, ax_mpl = plt.subplots(1, 1, figsize=(10, 6), dpi=dpi)
+            axes_mpl = [[ax_mpl]]
+        else:
+            fig_mpl, axes_mpl = plt.subplots(self._nrows, self._ncols,
+                                              figsize=(10, 6), dpi=dpi,
+                                              squeeze=False)
+
+        # Convert each subplot
+        for i in range(self._nrows):
+            for j in range(self._ncols):
+                ax_qplotly = self._axes_grid[i][j]
+                ax_mpl = axes_mpl[i][j]
+
+                # Get subplot index for accessing plotly data
+                subplot_idx = self._subplot_index(i + 1, j + 1)
+
+                # Extract data from plotly traces
+                for trace in self._fig.data:
+                    # Check if trace belongs to this subplot
+                    xaxis_ref = trace.xaxis if hasattr(trace, 'xaxis') else f'x{subplot_idx}' if subplot_idx > 1 else 'x'
+                    expected_ref = f'x{subplot_idx}' if subplot_idx > 1 else 'x'
+
+                    # For single subplot, traces may not have xaxis set
+                    if self._nrows == 1 and self._ncols == 1:
+                        belongs_to_subplot = True
+                    else:
+                        belongs_to_subplot = (xaxis_ref == expected_ref)
+
+                    if not belongs_to_subplot:
+                        continue
+
+                    # Plot based on trace type
+                    if trace.type == 'scatter':
+                        x = trace.x if hasattr(trace, 'x') and trace.x is not None else []
+                        y = trace.y if hasattr(trace, 'y') and trace.y is not None else []
+
+                        # Get styling
+                        color = trace.line.color if hasattr(trace, 'line') and trace.line and trace.line.color else None
+                        linewidth = trace.line.width if hasattr(trace, 'line') and trace.line and trace.line.width else 2
+                        linestyle = '-'
+                        if hasattr(trace, 'line') and trace.line and trace.line.dash:
+                            dash_map = {'dash': '--', 'dot': ':', 'dashdot': '-.', 'solid': '-'}
+                            linestyle = dash_map.get(trace.line.dash, '-')
+
+                        marker = None
+                        if hasattr(trace, 'mode') and trace.mode and 'markers' in trace.mode:
+                            marker = 'o'
+                            if hasattr(trace, 'marker') and trace.marker and trace.marker.symbol:
+                                symbol_map = {'circle': 'o', 'square': 's', 'diamond': 'D',
+                                            'cross': '+', 'x': 'x', 'triangle-up': '^'}
+                                marker = symbol_map.get(trace.marker.symbol, 'o')
+
+                        label = trace.name if trace.showlegend and trace.name else None
+
+                        # Plot
+                        if marker:
+                            ax_mpl.plot(x, y, color=color, linewidth=linewidth/2,
+                                       linestyle=linestyle, marker=marker, label=label)
+                        else:
+                            ax_mpl.plot(x, y, color=color, linewidth=linewidth/2,
+                                       linestyle=linestyle, label=label)
+
+                    elif trace.type == 'bar':
+                        x = trace.x if hasattr(trace, 'x') and trace.x is not None else []
+                        y = trace.y if hasattr(trace, 'y') and trace.y is not None else []
+                        color = trace.marker.color if hasattr(trace, 'marker') and trace.marker and trace.marker.color else None
+                        label = trace.name if trace.showlegend and trace.name else None
+                        ax_mpl.bar(x, y, color=color, label=label)
+
+                    elif trace.type == 'heatmap' or trace.type == 'contour':
+                        z = trace.z if hasattr(trace, 'z') and trace.z is not None else []
+                        x = trace.x if hasattr(trace, 'x') and trace.x is not None else None
+                        y = trace.y if hasattr(trace, 'y') and trace.y is not None else None
+
+                        if trace.type == 'heatmap':
+                            im = ax_mpl.pcolormesh(x, y, z, shading='auto')
+                            fig_mpl.colorbar(im, ax=ax_mpl)
+                        else:
+                            ax_mpl.contour(x, y, z)
+
+                # Set labels and title from plotly layout
+                xaxis_name = f"xaxis{subplot_idx}" if subplot_idx > 1 else "xaxis"
+                yaxis_name = f"yaxis{subplot_idx}" if subplot_idx > 1 else "yaxis"
+
+                if hasattr(self._fig.layout, xaxis_name):
+                    xaxis = getattr(self._fig.layout, xaxis_name)
+                    if xaxis.title and xaxis.title.text:
+                        ax_mpl.set_xlabel(xaxis.title.text, fontsize=14)
+
+                if hasattr(self._fig.layout, yaxis_name):
+                    yaxis = getattr(self._fig.layout, yaxis_name)
+                    if yaxis.title and yaxis.title.text:
+                        ax_mpl.set_ylabel(yaxis.title.text, fontsize=14)
+
+                # Grid
+                ax_mpl.grid(True, alpha=0.3)
+
+                # Legend - check if any traces have labels
+                handles, labels = ax_mpl.get_legend_handles_labels()
+                if handles and labels:
+                    ax_mpl.legend(fontsize=11, framealpha=0.9)
+
+        # Overall title
+        if self._fig.layout.title and self._fig.layout.title.text:
+            fig_mpl.suptitle(self._fig.layout.title.text, fontsize=16, fontweight='bold')
+
+        # Apply tight layout to minimize whitespace
+        if tight_layout:
+            fig_mpl.tight_layout()
+
+        # Save
+        fig_mpl.savefig(filename, dpi=dpi, bbox_inches='tight', **kwargs)
+        plt.close(fig_mpl)
+
         return self
 
     def to_html(self, **kwargs):

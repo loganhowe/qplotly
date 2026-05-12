@@ -1343,23 +1343,23 @@ class QFigure:
                         if hasattr(trace, 'colorscale') and trace.colorscale:
                             cs = trace.colorscale
                             if isinstance(cs, str):
-                                _cmap_map = {
-                                    'plasma': 'plasma', 'magma': 'magma',
-                                    'inferno': 'inferno', 'viridis': 'viridis',
-                                    'rdbu': 'RdBu', 'rdbu_r': 'RdBu_r',
-                                    'hot': 'hot', 'jet': 'jet',
-                                }
-                                cmap_mpl = _cmap_map.get(cs.lower(), cs)
-                            elif isinstance(cs, list) and len(cs) > 2:
+                                # Try as matplotlib cmap name directly
+                                try:
+                                    import matplotlib.cm as _cm
+                                    _cm.get_cmap(cs.lower())
+                                    cmap_mpl = cs.lower()
+                                except (ValueError, ImportError):
+                                    cmap_mpl = 'viridis'
+                            elif isinstance(cs, (list, tuple)) and len(cs) > 2:
                                 try:
                                     from matplotlib.colors import LinearSegmentedColormap, to_rgba
-                                    colors_rgba = []
                                     positions = []
-                                    for pos, col in cs:
-                                        positions.append(pos)
-                                        colors_rgba.append(to_rgba(col))
+                                    colors_rgba = []
+                                    for item in cs:
+                                        positions.append(float(item[0]))
+                                        colors_rgba.append(to_rgba(item[1]))
                                     cmap_mpl = LinearSegmentedColormap.from_list(
-                                        'custom', list(zip(positions, colors_rgba)))
+                                        'custom', list(zip(positions, colors_rgba)), N=256)
                                 except Exception:
                                     pass
 

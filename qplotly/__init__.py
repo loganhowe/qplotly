@@ -826,6 +826,70 @@ class Axes:
             })
         return self
 
+    def colorbar(self, title=None, fontsize=None, x=None, len_=None,
+                 thickness=20, **kwargs):
+        """Add/configure colorbar for the last heatmap trace on this axis.
+
+        Positions the colorbar immediately to the right of this subplot,
+        scaled to match the subplot height.
+
+        Args:
+            title: Colorbar title/label text
+            fontsize: Title font size (default: auto)
+            x: Horizontal position (default: right edge of subplot + 0.02)
+            len_: Colorbar length as fraction of figure (default: subplot height)
+            thickness: Colorbar width in pixels (default: 20)
+            **kwargs: Additional plotly colorbar dict properties
+        """
+        fig = self._parent._fig
+        ncols = self._parent._ncols
+
+        # Determine axis index (1-based linear)
+        axis_idx = (self._row - 1) * ncols + self._col
+        yaxis_key = f'yaxis{axis_idx}' if axis_idx > 1 else 'yaxis'
+        xaxis_key = f'xaxis{axis_idx}' if axis_idx > 1 else 'xaxis'
+        yaxis_ref = f'y{axis_idx}' if axis_idx > 1 else 'y'
+        xaxis_ref = f'x{axis_idx}' if axis_idx > 1 else 'x'
+
+        # Find the last heatmap/contour trace on this axis
+        target_trace = None
+        for trace in fig.data:
+            if (hasattr(trace, 'showscale')
+                    and trace.xaxis == xaxis_ref
+                    and trace.yaxis == yaxis_ref):
+                target_trace = trace
+
+        if target_trace is None:
+            return self
+
+        # Get subplot domain for positioning
+        yaxis_obj = getattr(fig.layout, yaxis_key)
+        xaxis_obj = getattr(fig.layout, xaxis_key)
+        y_domain = yaxis_obj.domain
+        x_domain = xaxis_obj.domain
+
+        if x is None:
+            x = x_domain[1] + 0.02
+        if len_ is None:
+            len_ = y_domain[1] - y_domain[0]
+
+        cb_dict = dict(
+            x=x,
+            y=(y_domain[0] + y_domain[1]) / 2,
+            len=len_,
+            thickness=thickness,
+            yanchor='middle',
+        )
+        if title:
+            title_dict = dict(text=title)
+            if fontsize:
+                title_dict['font'] = dict(size=fontsize)
+            cb_dict['title'] = title_dict
+        cb_dict.update(kwargs)
+
+        target_trace.colorbar = cb_dict
+        return self
+
     def twinx(self):
         """Create a twin Axes sharing the x-axis (secondary y-axis)."""
         ax2 = _TwinAxes(self._parent, self._row, self._col, secondary_y=True)

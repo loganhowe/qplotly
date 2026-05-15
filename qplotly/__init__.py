@@ -869,19 +869,20 @@ class Axes:
         x_domain = xaxis_obj.domain
 
         if x is None:
-            x = x_domain[1] + 0.02
+            x = x_domain[1] + 0.04
         if len_ is None:
             len_ = y_domain[1] - y_domain[0]
 
         cb_dict = dict(
             x=x,
+            xpad=10,
             y=(y_domain[0] + y_domain[1]) / 2,
             len=len_,
             thickness=thickness,
             yanchor='middle',
         )
         if title:
-            title_dict = dict(text=title)
+            title_dict = dict(text=title, side='right')
             if fontsize:
                 title_dict['font'] = dict(size=fontsize)
             cb_dict['title'] = title_dict

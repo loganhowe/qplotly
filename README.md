@@ -13,9 +13,10 @@ A matplotlib-like interface for Plotly, providing a familiar API for interactive
 - **Comprehensive plot types**: Support for line plots, scatter plots, bar charts, histograms, heatmaps, contours, and more
 - **Subplots**: Easy subplot creation with `subplots()` function
 - **Format strings**: Matplotlib-style format strings like `'ro--'` for red dashed lines with circle markers
-- **Per-subplot color cycling**: Automatic color cycling using nipy_spectral colormap, with colors resetting per subplot for consistent cross-subplot comparison
+- **Deterministic color cycling**: Matplotlib's default color cycle, assigned immediately and reset per subplot
 - **Dual axes**: Support for secondary y-axes with `twinx()`
 - **Annotations**: Text annotations, arrows, and reference lines
+- **Notebook-first display**: Importing qplotly selects Plotly's `notebook` renderer by default
 
 ## Installation
 
@@ -52,6 +53,15 @@ fig.legend()
 fig.show()
 ```
 
+Methods delegated through a single-panel figure return that figure, so fluent
+figure-owned calls also work:
+
+```python
+fig = qplotly.figure()
+fig.plot(x, y, label='data').xlabel('x').ylabel('y').legend()
+fig.show()
+```
+
 ## API Documentation
 
 ### Creating Figures
@@ -72,7 +82,9 @@ fig.show()
 ```
 
 #### Per-Subplot Color Cycling
-qplotly automatically assigns colors using the nipy_spectral colormap, with colors cycling independently per subplot. This ensures consistent colors across subplots for easy visual comparison.
+qplotly assigns Matplotlib's default color sequence when each trace is created.
+The cycle resets independently on every subplot, so matching trace order gives
+matching colors across panels. Calling `show()` never changes trace colors.
 
 ```python
 # Colors reset for each subplot
@@ -87,7 +99,8 @@ for ax in [axes[0][0], axes[0][1], axes[1][0], axes[1][1]]:
 fig.show()
 ```
 
-Result: All 4 subplots use the same color sequence (dark purple → blue → cyan → green → orange → light gray), making it easy to compare corresponding traces across subplots.
+Result: all four subplots use the same familiar Matplotlib color sequence,
+making it easy to compare corresponding traces across panels.
 
 #### Pyplot-style (stateful)
 ```python
@@ -205,6 +218,10 @@ fig.xlim([0, 10])
 ```python
 fig.xscale('log')
 fig.yscale('linear')
+
+# Matplotlib Axes spellings are aliases
+fig.set_xscale('log')
+fig.set_xlim(0, 10)
 ```
 
 #### Grid
@@ -234,6 +251,26 @@ fig.invert_yaxis()
 #### Aspect Ratio
 ```python
 fig.set_aspect('equal')
+```
+
+### Colorbars
+
+Color plots use the most recently added heatmap, contour, or color-mapped
+scatter on that axes:
+
+```python
+fig = qplotly.figure()
+fig.pcolormesh(x, y, z, cmap='Portland')
+fig.colorbar(title='Gain [dB]')
+```
+
+Coloring a line sweep by a parameter is explicit:
+
+```python
+fig = qplotly.figure()
+for bias in biases:
+    fig.plot(frequency, gain[bias])
+fig.sweep_colorbar(biases, label='Bias [mA]', cmap='Portland')
 ```
 
 ### Annotations
@@ -392,6 +429,7 @@ While `qplotly` aims to provide a matplotlib-like API, there are some difference
 3. **Backend**: Uses Plotly's rendering instead of matplotlib backends
 4. **Performance**: Better performance for large datasets with WebGL rendering
 5. **Export**: Different export requirements (kaleido for raster images)
+6. **Return values**: Plotting calls return the qplotly figure or axes for fluent use, rather than Matplotlib artist objects
 
 ## License
 

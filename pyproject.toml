@@ -8,9 +8,15 @@ version = "0.1.0"
 description = "A matplotlib-like interface for Plotly"
 requires-python = ">=3.9"
 dependencies = [
-    "plotly",
+    "plotly>=6.0",
     "numpy",
 ]
 
+[project.optional-dependencies]
+matplotlib = ["matplotlib>=3.6"]
+
 [tool.setuptools]
 packages = ["qplotly"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
